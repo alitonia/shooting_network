@@ -1,0 +1,3 @@
+/home/zen-net/work/network_client/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/zen-net/work/network_client/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/zen-net/work/network_client/cmake-build-debug/CMakeFiles/network_client.dir

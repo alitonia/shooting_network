@@ -1,0 +1,4 @@
+/home/zen-net/.local/share/JetBrains/Toolbox/apps/CLion/ch-0/203.7717.62/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/zen-net/work/network_client
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/zen-net/work/network_client/cmake-build-debug
