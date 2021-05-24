@@ -4,6 +4,15 @@ import os
 import random
 import csv
 import button
+from network.recv import start_receive_thread
+from network.send import start_send_thread
+from network.process import start_send_thread
+
+other_configs = dict()
+
+recv_q = start_receive_thread()
+send_q = start_send_thread()
+start_process_thread(recv_q, send_q, other_configs)
 
 mixer.init()
 pygame.init()
@@ -76,8 +85,8 @@ ammo_box_img = pygame.image.load('img/icons/ammo_box.png').convert_alpha()
 grenade_box_img = pygame.image.load('img/icons/grenade_box.png').convert_alpha()
 item_boxes = {
     'Health': health_box_img,
-    'Ammo'	: ammo_box_img,
-    'Grenade'	: grenade_box_img
+    'Ammo': ammo_box_img,
+    'Grenade': grenade_box_img
 }
 
 # define colours
@@ -90,6 +99,7 @@ PINK = (235, 65, 54)
 
 # define font
 font = pygame.font.SysFont('Futura', 30)
+
 
 def draw_text(text, font, text_col, x, y):
     img = font.render(text, True, text_col)
@@ -124,8 +134,6 @@ def reset_level():
         data.append(r)
 
     return data
-
-
 
 
 class Soldier(pygame.sprite.Sprite):
@@ -189,14 +197,12 @@ class Soldier(pygame.sprite.Sprite):
         self.width = self.image.get_width()
         self.height = self.image.get_height()
 
-
     def update(self):
         self.update_animation()
         self.check_alive()
         # update cooldown
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
-
 
     def move(self, moving_left, moving_right):
         # reset movement variables
@@ -272,7 +278,7 @@ class Soldier(pygame.sprite.Sprite):
         # update scroll based on player position
         if self.char_type == 'player':
             if (self.rect.right > SCREEN_WIDTH - SCROLL_THRESH and bg_scroll <
-                    (world.level_length * TILE_SIZE) - SCREEN_WIDTH) \
+                (world.level_length * TILE_SIZE) - SCREEN_WIDTH) \
                     or (self.rect.left < SCROLL_THRESH and bg_scroll > abs(dx)):
                 self.rect.x -= dx
                 screen_scroll = -dx
@@ -338,7 +344,7 @@ class Soldier(pygame.sprite.Sprite):
         if self.frame_index >= len(self.animation_list[self.action]):
             if self.action == 3 or self.action == 4:
                 self.frame_index = len(self.animation_list[self.action]) - 1
-            else :
+            else:
                 self.frame_index = 0
 
     def update_action(self, new_action):
@@ -681,6 +687,8 @@ while run:
         screen.fill(BG)
         # add buttons
         if start_button.draw(screen):
+            # start game here
+            pass
             start_game = True
             start_intro = True
         if exit_button.draw(screen):

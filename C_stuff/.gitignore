@@ -1,0 +1,10 @@
+*.cmake
+/_deps
+/bin
+/build
+/cmake-build-debug
+/lib
+/Testing/Temporary/
+CMakeCache.txt
+Makefile
+*.cbp
