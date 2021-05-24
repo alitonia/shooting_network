@@ -13,6 +13,9 @@ PORT = 8897  # Port to listen on (non-privileged ports are > 1023)
 
 def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
     while True:
+        while recv_q.empty() is False :
+            msg = recv_q.get()
+            config['msg'].append(msg)
         time.sleep(0.001)
 
 
@@ -22,4 +25,4 @@ def start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
         x.start()
     except e:
         sys.exit("Error: unable to start thread")
-    return q
+    # return q

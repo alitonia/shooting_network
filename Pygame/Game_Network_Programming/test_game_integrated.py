@@ -6,9 +6,12 @@ import csv
 import button
 from network.recv import start_receive_thread
 from network.send import start_send_thread
-from network.process import start_send_thread
+from network.processs import start_process_thread
+import json
 
 other_configs = dict()
+other_configs['other_players'] = [1, 2, 3]
+other_configs['msg'] = []
 
 recv_q = start_receive_thread()
 send_q = start_send_thread()
@@ -136,9 +139,70 @@ def reset_level():
     return data
 
 
-class Soldier(pygame.sprite.Sprite):
-    def __init__(self, char_type, x, y, scale, speed, ammo, grenades):
+class NotSoldier(pygame.sprite.Sprite):
+    def __init__(self, char_type, x, y, scale, speed, ammo, grenades, id=-1):
         pygame.sprite.Sprite.__init__(self)
+        self.id = id
+
+        self.alive = True
+        self.char_type = char_type
+        self.speed = speed
+        self.ammo = ammo
+        self.start_ammo = ammo
+        self.shoot_cooldown = 0
+        self.grenades = grenades
+        self.health = 100
+        self.max_health = self.health
+        self.direction = 1
+        self.vel_y = 0
+        self.jump = False
+        self.crouch = False
+        self.in_air = True
+        self.flip = False
+        self.animation_list = []
+        self.frame_index = 0
+        self.action = 0
+        self.update_time = pygame.time.get_ticks()
+        # ai specific variables
+        self.move_counter = 0
+        self.vision = pygame.Rect(0, 0, 150, 20)
+        self.idling = False
+        self.idling_counter = 0
+
+        # load all images for the players
+        animation_player_types = ['idle', 'run', 'jump', 'death', 'crouch']
+        animation_enemy_types = ['idle', 'run', 'jump', 'death', 'crouch']
+
+        for animation in animation_player_types:
+            # reset temporary list of images
+            temp_list = []
+            # count number of files in the folder
+            num_of_frames = len(os.listdir(f'image/{self.char_type}/{animation}'))
+            for i in range(num_of_frames):
+                img = pygame.image.load(f'image/{self.char_type}/{animation}/{i}.png').convert_alpha()
+                img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+
+        self.image = self.animation_list[self.action][self.frame_index]
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
+        pass
+
+    def update(self):
+        pass
+
+    def draw(self):
+        screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
+
+
+class Soldier(pygame.sprite.Sprite):
+    def __init__(self, char_type, x, y, scale, speed, ammo, grenades, id=-1):
+        pygame.sprite.Sprite.__init__(self)
+        self.id = id
+
         self.alive = True
         self.char_type = char_type
         self.speed = speed
@@ -179,6 +243,17 @@ class Soldier(pygame.sprite.Sprite):
                     img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
                     temp_list.append(img)
                 self.animation_list.append(temp_list)
+        elif self.char_type == "other":
+            for animation in animation_player_types:
+                # reset temporary list of images
+                temp_list = []
+                # count number of files in the folder
+                num_of_frames = len(os.listdir(f'image/{"player"}/{animation}'))
+                for i in range(num_of_frames):
+                    img = pygame.image.load(f'image/{"player"}/{animation}/{i}.png').convert_alpha()
+                    img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+                    temp_list.append(img)
+                self.animation_list.append(temp_list)
         else:
             for animation in animation_enemy_types:
                 # reset temporary list of images
@@ -196,8 +271,11 @@ class Soldier(pygame.sprite.Sprite):
         self.rect.center = (x, y)
         self.width = self.image.get_width()
         self.height = self.image.get_height()
+        self.offset_x = 0
+        self.offset_y = 0
 
     def update(self):
+        # if self.char_type != 'other':
         self.update_animation()
         self.check_alive()
         # update cooldown
@@ -286,7 +364,7 @@ class Soldier(pygame.sprite.Sprite):
         return screen_scroll, level_complete
 
     def shoot(self):
-        if self.shoot_cooldown == 0 and self.ammo > 0:
+        if (self.shoot_cooldown == 0 and self.ammo > 0) or self.char_type == 'other':
             self.shoot_cooldown = 20
             bullet = Bullet(self.rect.centerx + (0.5 * (self.rect.size[0] + self.offset_x) * self.direction),
                             self.offset_y + self.rect.centery + (0.25 * self.rect.size[1]), self.direction)
@@ -397,6 +475,8 @@ class World():
                         decoration_group.add(decoration)
                     elif tile == 15:  # create player
                         player = Soldier('player', x * TILE_SIZE, y * TILE_SIZE, 2.5, 5, 20, 5)
+                        others = [Soldier('other', x * TILE_SIZE, y * TILE_SIZE, 2.5, 5, 0, 0, i) for i in
+                                  other_configs['other_players']]
                         health_bar = HealthBar(10, 10, player.health, player.health)
                     elif tile == 16:  # create enemies
                         enemy = Soldier('enemy', x * TILE_SIZE, y * TILE_SIZE, 2.5, 2, 20, 0)
@@ -414,7 +494,7 @@ class World():
                         exit = Exit(img, x * TILE_SIZE, y * TILE_SIZE)
                         exit_group.add(exit)
 
-        return player, health_bar
+        return player, health_bar, others
 
     def draw(self):
         for tile in self.obstacle_list:
@@ -675,7 +755,7 @@ with open(f'level{level}_data.csv', newline='') as csvfile:
         for y, tile in enumerate(row):
             world_data[x][y] = int(tile)
 world = World()
-player, health_bar = world.process_data(world_data)
+player, health_bar, others = world.process_data(world_data)
 
 run = True
 while run:
@@ -711,6 +791,10 @@ while run:
 
         player.update()
         player.draw()
+
+        for p in others:
+            p.update()
+            p.draw()
 
         for enemy in enemy_group:
             enemy.ai()
@@ -776,7 +860,7 @@ while run:
                             for y, tile in enumerate(row):
                                 world_data[x][y] = int(tile)
                     world = World()
-                    player, health_bar = world.process_data(world_data)
+                    player, health_bar, others = world.process_data(world_data)
         else:
             screen_scroll = 0
             if death_fade.fade():
@@ -792,7 +876,23 @@ while run:
                             for y, tile in enumerate(row):
                                 world_data[x][y] = int(tile)
                     world = World()
-                    player, health_bar = world.process_data(world_data)
+                    player, health_bar, others = world.process_data(world_data)
+
+    while len(other_configs['msg']) > 0:
+        m = other_configs['msg'].pop()
+        try:
+            try_split = m.rstrip().split(' ')
+            print(try_split)
+            if len(try_split) >= 2:
+                id = int(try_split[0])
+                action = try_split[1]
+                if action == 'ok' and id in other_configs['other_players']:
+                    i = other_configs['other_players'].index(id)
+                    others[i].shoot()
+                    print('yes')
+            print(m)
+        except e:
+            print(e)
 
     for event in pygame.event.get():
         # quit game

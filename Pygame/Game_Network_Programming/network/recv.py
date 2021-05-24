@@ -17,8 +17,7 @@ def _start_receive_thread(q):
         s.bind((HOST, PORT))
         while True:
             data = s.recvfrom(1024)
-            q.put(data)
-            print(data)
+            q.put(data[0].decode('utf-8'))
 
 
 def start_receive_thread():
