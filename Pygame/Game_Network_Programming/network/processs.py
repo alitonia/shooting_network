@@ -7,8 +7,8 @@ import time
 import sys
 import pygame
 
-HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
-PORT = 8897  # Port to listen on (non-privileged ports are > 1023)
+HOST = '127.0.0.1'
+PORT = 8897
 
 C_PORT = 8996
 
@@ -25,7 +25,7 @@ def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
             send_q.put({
                 "IP": HOST,
                 "port": C_PORT,
-                "payload": f"{sid} {msg}".encode('utf-8')
+                "payload": f"{sid} {msg}--py".encode('utf-8')
             })
 
         time.sleep(0.001)

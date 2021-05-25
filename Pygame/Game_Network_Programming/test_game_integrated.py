@@ -467,22 +467,23 @@ class Soldier(pygame.sprite.Sprite):
                 self.offset_x = 0
                 self.offset_y = 0
 
-    def check_alive(self):
-        if self.health <= 0:
-            self.health = 0
-            self.speed = 0
-            self.alive = False
-            self.update_action(3)
-
-    def draw(self):
-        screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
-
     def die(self):
         self.health = 0
         self.dead = True
         if self.char_type == 'player':
             other_configs['event'].append('die')
             player_persist_key = None
+
+    def check_alive(self):
+        if self.health <= 0:
+            self.health = 0
+            self.speed = 0
+            self.alive = False
+            self.update_action(3)
+            self.die()
+
+    def draw(self):
+        screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
 
 class World():
@@ -1011,7 +1012,7 @@ while run:
                 other_configs['event'].append('grenade')
             if event.key == pygame.K_w or event.key == pygame.K_UP and player.alive:
                 player.jump = True
-                player_persist_key = 'jump'
+                # player_persist_key = 'jump'
                 other_configs['event'].append('jump')
                 jump_fx.play()
             if event.key == pygame.K_s or event.key == pygame.K_DOWN and player.alive:
@@ -1042,6 +1043,5 @@ while run:
     if player_persist_key is not None and persist_dispatched is False:
         other_configs['event'].append(player_persist_key)
     pygame.display.update()
-
 
 pygame.quit()

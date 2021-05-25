@@ -12,6 +12,9 @@
 #include "udp_recv.hpp"
 #include <arpa/inet.h>
 
+int PY_PORT=8997;
+int NODE_PORT=8998;
+
 namespace udp_recv {
     int sockfd;
 
@@ -56,21 +59,35 @@ namespace udp_recv {
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
+        int length;
         while (true) {
             n = recvfrom(sockfd, (char *) buffer, MAXLINE,
                          MSG_WAITALL, (struct sockaddr *) &servaddr,
                          reinterpret_cast<socklen_t *>(&len));
             buffer[n] = '\0';
+            length = strlen(buffer);
 
-            if (strlen(buffer) > 0) {
+            int dest_port = (int) ntohs(servaddr.sin_port);
+            int is_py_package = 0;
+
+            if (length > 0) {
             //forward
+                if (length >=4 &&buffer[length-4]=='-'&&buffer[length-3]=='-'&& buffer[length-2]=='p' && buffer[length-1] == 'y'){
+                    is_py_package = 1;
+                }
+                printf("status: %d\n", is_py_package);
                 char *cm = (char *) malloc(sizeof(char) * strlen(buffer));
                 strcpy(cm, buffer);
 
                 memset(&cliaddr, 0, sizeof(cliaddr));
                 cliaddr.sin_family = AF_INET;
                 cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-                cliaddr.sin_port = htons(8998);
+
+                if(is_py_package == 1){
+                    cliaddr.sin_port = htons(NODE_PORT);
+                }else{
+                    cliaddr.sin_port = htons(PY_PORT);
+                }
 
                 sendto(sockfd, (const char *) cm, strlen(cm),
                        MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
