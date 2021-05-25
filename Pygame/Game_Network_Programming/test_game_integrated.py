@@ -12,6 +12,8 @@ import json
 other_configs = dict()
 other_configs['other_players'] = [1, 2, 3]
 other_configs['msg'] = []
+other_configs['event'] = []
+other_configs['self_id'] = 11
 
 recv_q = start_receive_thread()
 send_q = start_send_thread()
@@ -394,12 +396,23 @@ class Soldier(pygame.sprite.Sprite):
                 self.idling = True
                 self.idling_counter = 50
             # check if the ai in near the player
+            nothing_to_shoot = True
             if self.vision.colliderect(player.rect):
                 # stop running and face the player
                 self.update_action(0)  # 0: idle
                 # shoot
                 self.shoot()
-            else:
+                nothing_to_shoot = False
+            elif others:
+                for o in others:
+                    if self.vision.colliderect(o.rect):
+                        # stop running and face the player
+                        self.update_action(0)  # 0: idle
+                        # shoot
+                        self.shoot()
+                        nothing_to_shoot = False
+
+            if nothing_to_shoot:
                 if self.idling == False:
                     if self.direction == 1:
                         ai_moving_right = True
@@ -854,6 +867,7 @@ while run:
             # shoot bullets
             if shoot:
                 player.shoot()
+                other_configs['event'].append('shoot')
             # throw grenades
             elif grenade and grenade_thrown == False and player.grenades > 0:
                 grenade = Grenade(player.rect.centerx + (0.5 * player.rect.size[0] * player.direction), \
