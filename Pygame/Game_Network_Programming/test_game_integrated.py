@@ -15,6 +15,9 @@ other_configs['msg'] = []
 other_configs['event'] = []
 other_configs['self_id'] = 11
 
+player_persist_key = None
+persist_dispatched = False
+
 recv_q = start_receive_thread()
 send_q = start_send_thread()
 start_process_thread(recv_q, send_q, other_configs)
@@ -364,8 +367,6 @@ class Soldier(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
-
-
         # update scroll based on player position
         if self.char_type == 'player':
             if (self.rect.right > SCREEN_WIDTH - SCROLL_THRESH and bg_scroll <
@@ -380,7 +381,7 @@ class Soldier(pygame.sprite.Sprite):
         self.move(False, False)
 
     def shoot(self):
-        if (self.shoot_cooldown == 0 and self.ammo > 0) or self.char_type == 'other':
+        if (self.shoot_cooldown == 0 and self.ammo > 0):
             self.shoot_cooldown = 20
             bullet = Bullet(self.rect.centerx + (0.5 * (self.rect.size[0] + self.offset_x) * self.direction),
                             self.offset_y + self.rect.centery + (0.25 * self.rect.size[1]), self.direction)
@@ -479,6 +480,9 @@ class Soldier(pygame.sprite.Sprite):
     def die(self):
         self.health = 0
         self.dead = True
+        if self.char_type == 'player':
+            other_configs['event'].append('die')
+            player_persist_key = None
 
 
 class World():
@@ -967,7 +971,7 @@ while run:
                         others[i].jump = True
                     elif action == 'die':
                         others[i].die()
-                    elif others[i].crouch:
+                    elif others[i].crouch or action == 'crunch':
                         other[i].crouch = True
                         others[i].update_action(4)  # 4: crouch
                     else:
@@ -980,30 +984,46 @@ while run:
     for o in others:
         o.stablize()
 
+    persist_dispatched = False
     for event in pygame.event.get():
         # quit game
         if event.type == pygame.QUIT:
+            other_configs['event'].append('quit')
             run = False
         # keyboard presses
         if event.type == pygame.KEYDOWN:
+            persist_dispatched = True
             if event.key == pygame.K_a or event.key == pygame.K_LEFT:
                 moving_left = True
+                player_persist_key = 'left'
+                other_configs['event'].append('left')
             if event.key == pygame.K_d or event.key == pygame.K_RIGHT:
                 moving_right = True
+                player_persist_key = 'right'
+                other_configs['event'].append('right')
             if event.key == pygame.K_SPACE:
                 shoot = True
+                player_persist_key = 'shoot'
+                other_configs['event'].append('shoot')
             if event.key == pygame.K_q:
                 grenade = True
+                player_persist_key = 'grenade'
+                other_configs['event'].append('grenade')
             if event.key == pygame.K_w or event.key == pygame.K_UP and player.alive:
                 player.jump = True
+                player_persist_key = 'jump'
+                other_configs['event'].append('jump')
                 jump_fx.play()
             if event.key == pygame.K_s or event.key == pygame.K_DOWN and player.alive:
+                other_configs['event'].append('crunch')
+                player_persist_key = 'crunch'
                 player.crouch = True
-            if event.key == pygame.K_ESCAPE:
-                run = False
+            # if event.key == pygame.K_ESCAPE:
+            #     run = False
 
         # keyboard button released
-        if event.type == pygame.KEYUP:
+        elif event.type == pygame.KEYUP:
+            persist_dispatched = True
             if event.key == pygame.K_a or event.key == pygame.K_LEFT:
                 moving_left = False
             if event.key == pygame.K_d or event.key == pygame.K_RIGHT:
@@ -1017,7 +1037,11 @@ while run:
             if event.key == pygame.K_q:
                 grenade = False
                 grenade_thrown = False
+            player_persist_key = None
 
+    if player_persist_key is not None and persist_dispatched is False:
+        other_configs['event'].append(player_persist_key)
     pygame.display.update()
+
 
 pygame.quit()
