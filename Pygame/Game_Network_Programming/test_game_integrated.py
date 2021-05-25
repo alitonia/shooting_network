@@ -227,6 +227,7 @@ class Soldier(pygame.sprite.Sprite):
         self.vision = pygame.Rect(0, 0, 150, 20)
         self.idling = False
         self.idling_counter = 0
+        self.dead = False
 
         # load all images for the players
         animation_player_types = ['idle', 'run', 'jump', 'death', 'crouch']
@@ -275,6 +276,8 @@ class Soldier(pygame.sprite.Sprite):
         self.offset_y = 0
 
     def update(self):
+        if self.char_type == 'other':
+            self.rect.x += screen_scroll
         # if self.char_type != 'other':
         self.update_animation()
         self.check_alive()
@@ -282,7 +285,9 @@ class Soldier(pygame.sprite.Sprite):
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
 
-    def move(self, moving_left, moving_right):
+    def move(self, moving_left, moving_right, is_jump=False):
+        if self.dead:
+            return 0, 0
         # reset movement variables
         screen_scroll = 0
         dx = 0
@@ -300,6 +305,10 @@ class Soldier(pygame.sprite.Sprite):
 
         # jump
         if self.jump == True and self.in_air == False:
+            self.vel_y = -11
+            self.jump = False
+            self.in_air = True
+        elif self.char_type == 'other' and is_jump and self.in_air == False:
             self.vel_y = -11
             self.jump = False
             self.in_air = True
@@ -353,6 +362,8 @@ class Soldier(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
+
+
         # update scroll based on player position
         if self.char_type == 'player':
             if (self.rect.right > SCREEN_WIDTH - SCROLL_THRESH and bg_scroll <
@@ -362,6 +373,9 @@ class Soldier(pygame.sprite.Sprite):
                 screen_scroll = -dx
 
         return screen_scroll, level_complete
+
+    def stablize(self):
+        self.move(False, False)
 
     def shoot(self):
         if (self.shoot_cooldown == 0 and self.ammo > 0) or self.char_type == 'other':
@@ -449,6 +463,10 @@ class Soldier(pygame.sprite.Sprite):
     def draw(self):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
+    def die(self):
+        self.health = 0
+        self.dead = True
+
 
 class World():
     def __init__(self):
@@ -475,8 +493,12 @@ class World():
                         decoration_group.add(decoration)
                     elif tile == 15:  # create player
                         player = Soldier('player', x * TILE_SIZE, y * TILE_SIZE, 2.5, 5, 20, 5)
-                        others = [Soldier('other', x * TILE_SIZE, y * TILE_SIZE, 2.5, 5, 0, 0, i) for i in
+                        others = [Soldier('other', x * TILE_SIZE, y * TILE_SIZE, 2.5, 5, 20, 5, i) for i in
                                   other_configs['other_players']]
+
+                        for o in others:
+                            o.in_air = False
+
                         health_bar = HealthBar(10, 10, player.health, player.health)
                     elif tile == 16:  # create enemies
                         enemy = Soldier('enemy', x * TILE_SIZE, y * TILE_SIZE, 2.5, 2, 20, 0)
@@ -758,6 +780,10 @@ world = World()
 player, health_bar, others = world.process_data(world_data)
 
 run = True
+
+for o in others:
+    o.in_air = False
+
 while run:
 
     clock.tick(FPS)
@@ -877,6 +903,26 @@ while run:
                                 world_data[x][y] = int(tile)
                     world = World()
                     player, health_bar, others = world.process_data(world_data)
+                    screen_scroll, level_complete = player.move(moving_left, moving_right)
+                    bg_scroll -= screen_scroll
+                    # check if player has completed the level
+                    if level_complete:
+                        start_intro = True
+                        level += 1
+                        bg_scroll = 0
+                        world_data = reset_level()
+                        if level <= MAX_LEVELS:
+                            # load in level data and create world
+                            with open(f'level{level}_data.csv', newline='') as csvfile:
+                                reader = csv.reader(csvfile, delimiter=',')
+                                for x, row in enumerate(reader):
+                                    for y, tile in enumerate(row):
+                                        world_data[x][y] = int(tile)
+                            world = World()
+                            player, health_bar, others = world.process_data(world_data)
+
+                        while len(other_configs['msg']) > 0:
+                            other_configs['msg'].pop()
 
     while len(other_configs['msg']) > 0:
         m = other_configs['msg'].pop()
@@ -886,13 +932,39 @@ while run:
             if len(try_split) >= 2:
                 id = int(try_split[0])
                 action = try_split[1]
-                if action == 'ok' and id in other_configs['other_players']:
+                if id in other_configs['other_players']:
                     i = other_configs['other_players'].index(id)
-                    others[i].shoot()
-                    print('yes')
+                    if action == 'shoot':
+                        others[i].shoot()
+                        print('shoot')
+                    # throw grenades
+                    elif action == 'grenade':
+                        grenade = Grenade(others[i].rect.centerx + (0.5 * others[i].rect.size[0] * others[i].direction), \
+                                          others[i].rect.top, others[i].direction)
+                        grenade_group.add(grenade)
+                        # reduce grenades
+                        # others[i].grenades -= 1
+                        grenade_thrown = True
+                    if others[i].in_air:
+                        others[i].update_action(2)  # 2: jump
+                    elif action == 'left' or action == 'right':
+                        others[i].update_action(1)  # 1: run
+                    elif action == 'jump':
+                        others[i].jump = True
+                    elif action == 'die':
+                        others[i].die()
+                    elif others[i].crouch:
+                        other[i].crouch = True
+                        others[i].update_action(4)  # 4: crouch
+                    else:
+                        others[i].update_action(0)  # 0: idle
+
+                    others[i].move(action == 'left', action == 'right', action == 'jump')
             print(m)
-        except e:
+        except Exception as e:
             print(e)
+    for o in others:
+        o.stablize()
 
     for event in pygame.event.get():
         # quit game
