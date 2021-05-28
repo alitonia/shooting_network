@@ -10,10 +10,19 @@ from network.processs import start_process_thread
 import json
 
 other_configs = dict()
-other_configs['other_players'] = [1, 2, 3]
+
+other_configs['inner_network_msg'] = dict()
+
 other_configs['msg'] = []
 other_configs['event'] = []
-other_configs['self_id'] = 11
+
+other_configs['self_id'] = None
+other_configs['other_players'] = None
+
+# ----------------------------  For testing. remove at deploy pls
+other_configs['self_id'] = 1
+other_configs['other_players'] = [2, 4, 5]
+# --------------------------    For testing. remove at deploy pls
 
 player_persist_key = None
 persist_dispatched = False
@@ -511,8 +520,7 @@ class World():
                         decoration_group.add(decoration)
                     elif tile == 15:  # create player
                         player = Soldier('player', x * TILE_SIZE, y * TILE_SIZE, 2.5, 5, 20, 5)
-                        others = [Soldier('other', x * TILE_SIZE, y * TILE_SIZE, 2.5, 5, 20, 5, i) for i in
-                                  other_configs['other_players']]
+                        others = []
 
                         for o in others:
                             o.in_air = False
@@ -806,12 +814,25 @@ while run:
 
     clock.tick(FPS)
 
+    if other_configs['self_id'] is None:
+        other_configs['event'].append('register')
+    elif other_configs['other_players'] is None:
+        other_configs['event'].append('get_room')
+
     if start_game == False:
         # draw menu
         screen.fill(BG)
         # add buttons
-        if start_button.draw(screen):
+        if (
+                start_button.draw(screen)
+                and other_configs['self_id'] is not None
+                and other_configs['other_players'] is not None
+        ):
             # start game here
+            others = [Soldier('other', 7 * TILE_SIZE, 7 * TILE_SIZE, 2.5, 5, 20, 5, i) for i in
+                      other_configs['other_players']]
+            print('p')
+            # player, health_bar, others = world.process_data(world_data)
             pass
             start_game = True
             start_intro = True
