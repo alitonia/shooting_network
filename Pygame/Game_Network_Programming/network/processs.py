@@ -1,20 +1,9 @@
 from queue import Queue
-from threading import Thread
-import socket
-import logging
 import threading
-import time
 import sys
-import pygame
-import datetime
 import re
 import time
 import json
-
-HOST = '127.0.0.1'
-PORT = 8897
-
-C_PORT = 8996
 
 cooldown = {
     'register': {
@@ -84,8 +73,8 @@ def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
                     should_send = get_permission('register')
                     if should_send:
                         send_q.put({
-                            "IP": HOST,
-                            "port": C_PORT,
+                            "IP": config['HOSTIP'],
+                            "port": config['C_PORT'],
                             "payload": f"{msg}--py".encode('utf-8')
                         })
                     continue
@@ -98,8 +87,8 @@ def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
 
                 if should_send:
                     send_q.put({
-                        "IP": HOST,
-                        "port": C_PORT,
+                        "IP": config['HOSTIP'],
+                        "port": config['C_PORT'],
                         "payload": f"{sid} {msg}--py".encode('utf-8')
                     })
 

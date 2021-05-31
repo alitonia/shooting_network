@@ -10,9 +10,19 @@ from network.processs import start_process_thread
 import json
 import random
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 other_configs = dict()
 
 other_configs['inner_network_msg'] = dict()
+
+other_configs['PY_PORT'] = int(os.environ.get("PY_PORT"))
+other_configs['C_PORT'] = int(os.environ.get("C_PORT"))
+other_configs['NODE_PORT'] = int(os.environ.get("NODE_PORT"))
+other_configs['HOSTIP'] = os.environ.get("HOSTIP")
 
 other_configs['msg'] = []
 other_configs['event'] = []
@@ -28,8 +38,8 @@ other_configs['self_id'] = random.randint(1, pow(10, 9))
 player_persist_key = None
 persist_dispatched = False
 
-recv_q = start_receive_thread()
-send_q = start_send_thread()
+recv_q = start_receive_thread(other_configs)
+send_q = start_send_thread(other_configs)
 start_process_thread(recv_q, send_q, other_configs)
 
 mixer.init()
@@ -218,6 +228,9 @@ class Soldier(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.id = id
 
+        self.resyncCount = 0
+        self.resyncThreshold = 20
+
         self.alive = True
         self.char_type = char_type
         self.speed = speed
@@ -291,16 +304,25 @@ class Soldier(pygame.sprite.Sprite):
         self.offset_y = 0
 
     def update(self):
+        if self.char_type == 'player':
+            self.resyncCount += 1
+
         if self.char_type == 'other':
             self.rect.x += screen_scroll
         # if self.char_type != 'other':
         self.update_animation()
+        if self.resyncCount >= self.resyncThreshold:
+            self.resyncCount = 0
+            other_configs['event'].append(f"resync {self.rect.center[0]} {self.rect.center[1]}")
+            print(self.rect.center)
+
         self.check_alive()
         # update cooldown
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
 
     def move(self, moving_left, moving_right, is_jump=False):
+
         if self.dead:
             return 0, 0
         # reset movement variables
@@ -996,8 +1018,12 @@ while run:
                     elif action == 'die':
                         others[i].die()
                     elif others[i].crouch or action == 'crunch':
-                        other[i].crouch = True
+                        others[i].crouch = True
                         others[i].update_action(4)  # 4: crouch
+                    elif action == 'resync':
+                        coordX, coordY = int(try_split[2]), int(try_split[3])
+                        print(coordX, coordY)
+                        others[i].rect.center = (coordX, coordY)
                     else:
                         others[i].update_action(0)  # 0: idle
 
@@ -1066,6 +1092,10 @@ while run:
 
     if player_persist_key is not None and persist_dispatched is False:
         other_configs['event'].append(player_persist_key)
+
+    if player.rect.center[0] > 500:
+        player.rect.center = (200, player.rect.center[1])
+
     pygame.display.update()
 
 pygame.quit()

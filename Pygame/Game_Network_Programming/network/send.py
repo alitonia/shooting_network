@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 from queue import Queue
-from threading import Thread
 import socket
-import logging
 import threading
 import time
 import sys
 
 
-def _start_send_thread(q: Queue):
+def _start_send_thread(q: Queue, cf):
     with socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM) as s:
         while True:
             while q.empty() is False:
@@ -21,10 +19,10 @@ def _start_send_thread(q: Queue):
                 time.sleep(0.001)
 
 
-def start_send_thread():
+def start_send_thread(cf):
     q = Queue()
     try:
-        x = threading.Thread(target=_start_send_thread, args=(q,))
+        x = threading.Thread(target=_start_send_thread, args=(q, cf))
         x.start()
     except e:
         sys.exit("Error: unable to start thread")

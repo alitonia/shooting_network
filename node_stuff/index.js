@@ -14,11 +14,11 @@ const inmemData = {
             player_list: [1, 2, 3],
             status: 'queuing'
         },
-        'li5SdBU-ff23qW0LhwV8e': {
-            player_startpoint: 2,
-            player_list: [],
-            status: 'queuing'
-        },
+        // 'li5SdBU-ff23qW0LhwV8e': {
+        //     player_startpoint: 2,
+        //     player_list: [],
+        //     status: 'queuing'
+        // },
         'li5SdBU-ff33qW0LhwV8e': {
             player_startpoint: 2,
             player_list: [4],
