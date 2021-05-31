@@ -11,9 +11,11 @@ import json
 import random
 
 from dotenv import load_dotenv
+from pathlib import Path
 import os
 
-load_dotenv()
+dotenv_path = Path('../../.env')
+load_dotenv(dotenv_path=dotenv_path)
 
 other_configs = dict()
 
@@ -314,7 +316,6 @@ class Soldier(pygame.sprite.Sprite):
         if self.resyncCount >= self.resyncThreshold:
             self.resyncCount = 0
             other_configs['event'].append(f"resync {self.rect.center[0]} {self.rect.center[1]}")
-            print(self.rect.center)
 
         self.check_alive()
         # update cooldown
@@ -1092,9 +1093,6 @@ while run:
 
     if player_persist_key is not None and persist_dispatched is False:
         other_configs['event'].append(player_persist_key)
-
-    if player.rect.center[0] > 500:
-        player.rect.center = (200, player.rect.center[1])
 
     pygame.display.update()
 
