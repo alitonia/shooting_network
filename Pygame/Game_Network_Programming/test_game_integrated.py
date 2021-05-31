@@ -44,6 +44,8 @@ recv_q = start_receive_thread(other_configs)
 send_q = start_send_thread(other_configs)
 start_process_thread(recv_q, send_q, other_configs)
 
+print(f"Config: listen {other_configs['PY_PORT']} | C: {other_configs['C_PORT']} ")
+
 mixer.init()
 pygame.init()
 

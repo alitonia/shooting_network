@@ -1,4 +1,8 @@
-var PORT = 8998;
+
+require('dotenv').config({path: './../.env'})
+
+const PORT = process.env.NODE_PORT;
+
 
 const {nanoid} = require('nanoid')
 const {md5} = require('md5')

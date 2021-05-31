@@ -12,11 +12,13 @@
 #include "udp_recv.hpp"
 #include <arpa/inet.h>
 #include <nlohmann/json.hpp>
+#include "dotenv.h"
+
+using namespace dotenv;
 
 using json = nlohmann::json;
 
-int PY_PORT=8997;
-int NODE_PORT=8998;
+
 
 namespace udp_recv {
     int sockfd;
@@ -30,7 +32,13 @@ namespace udp_recv {
     }
 
 
-    void start(SharedQueue<char *> *q, int recv_port) {
+    void start(SharedQueue<char *> *q, int _recv_port) {
+        int PY_PORT=atoi(env["PY_PORT"].c_str());
+        int NODE_PORT=atoi(env["NODE_PORT"].c_str());
+        int recv_port = atoi(env["C_PORT"].c_str());
+
+        printf("Config: listen %d | py: %d | node: %d\n", recv_port, PY_PORT, NODE_PORT);
+
         char buffer[MAXLINE];
         struct sockaddr_in servaddr{}, cliaddr{};
 

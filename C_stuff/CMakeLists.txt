@@ -51,6 +51,9 @@ include(GoogleTest)
 gtest_discover_tests(hello_test)
 
 
+add_subdirectory(cpp-dotenv)
+
+
 add_executable(${PROJECT_NAME}
         main.cpp
         encode_decode/encode_decode.cpp
@@ -65,6 +68,7 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
         nlohmann_json::nlohmann_json
         Threads::Threads
+        cpp_dotenv
         )
 
 #add_executable(network_client tcp_client.cpp tcp_server.cpp udp_client.cpp udp_server.cpp)
