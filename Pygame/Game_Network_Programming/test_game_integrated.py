@@ -8,6 +8,7 @@ from network.recv import start_receive_thread
 from network.send import start_send_thread
 from network.processs import start_process_thread
 import json
+import random
 
 other_configs = dict()
 
@@ -20,8 +21,8 @@ other_configs['self_id'] = None
 other_configs['other_players'] = None
 
 # ----------------------------  For testing. remove at deploy pls
-other_configs['self_id'] = 1
-other_configs['other_players'] = [2, 4, 5]
+other_configs['self_id'] = random.randint(1, pow(10, 9))
+# other_configs['other_players'] = [2, 4, 5]
 # --------------------------    For testing. remove at deploy pls
 
 player_persist_key = None
@@ -965,6 +966,7 @@ while run:
                             other_configs['msg'].pop()
 
     while len(other_configs['msg']) > 0:
+        print('k')
         m = other_configs['msg'].pop()
         try:
             try_split = m.rstrip().split(' ')
@@ -1003,6 +1005,7 @@ while run:
             print(m)
         except Exception as e:
             print(e)
+            print('in msg layer')
     for o in others:
         o.stablize()
 

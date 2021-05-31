@@ -11,6 +11,9 @@
 #include <iostream>
 #include "udp_recv.hpp"
 #include <arpa/inet.h>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 int PY_PORT=8997;
 int NODE_PORT=8998;
@@ -59,6 +62,7 @@ namespace udp_recv {
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
+
         int length;
         while (true) {
             n = recvfrom(sockfd, (char *) buffer, MAXLINE,
@@ -74,10 +78,11 @@ namespace udp_recv {
             //forward
                 if (length >=4 &&buffer[length-4]=='-'&&buffer[length-3]=='-'&& buffer[length-2]=='p' && buffer[length-1] == 'y'){
                     is_py_package = 1;
+                    buffer[strlen(buffer)-4] = '\0';
                 }
-                printf("status: %d\n", is_py_package);
-                char *cm = (char *) malloc(sizeof(char) * strlen(buffer));
-                strcpy(cm, buffer);
+                printf("  //_s: %d\n", is_py_package);
+//                char *cm = (char *) malloc(sizeof(char) * strlen(buffer));
+//                strcpy(cm, buffer);
 
                 memset(&cliaddr, 0, sizeof(cliaddr));
                 cliaddr.sin_family = AF_INET;
@@ -88,12 +93,31 @@ namespace udp_recv {
                 }else{
                     cliaddr.sin_port = htons(PY_PORT);
                 }
+//
+//                if(is_py_package!=1){
+//                try{
+//                auto structured_msg = json::parse(buffer);
+//                if(structured_msg["type"] == 4){
+//                    printf("SOmething good here\n");
+//                    auto s = (structured_msg["player_list"].dump()).c_str();
+//                    std::cout << structured_msg["player_list"].dump()<<'\n';
+//                    std::cout << s<<'\n';
+//
+//                    json j;
+//                    j["type"] = 4;
+//                    j["x"] = s;
+//                    sendto(sockfd, (const char *) s, strlen(s),
+//                                           MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
+//                                           sizeof(cliaddr));
+//                                           continue;
+//                                           }
+//                }
+//}
 
-                sendto(sockfd, (const char *) cm, strlen(cm),
+                sendto(sockfd, (const char *) buffer, strlen(buffer),
                        MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
                        sizeof(cliaddr));
-                std::cout<< cm;
-                free(cm);
+                std::cout<< buffer;
             }
         }
 #pragma clang diagnostic pop
