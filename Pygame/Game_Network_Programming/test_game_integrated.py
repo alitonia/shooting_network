@@ -317,7 +317,7 @@ class Soldier(pygame.sprite.Sprite):
         self.update_animation()
         if self.resyncCount >= self.resyncThreshold:
             self.resyncCount = 0
-            other_configs['event'].append(f"resync {self.rect.center[0]} {self.rect.center[1]}")
+            # other_configs['event'].append(f"resync {self.rect.center[0]} {self.rect.center[1]}")
 
         self.check_alive()
         # update cooldown
@@ -1021,12 +1021,12 @@ while run:
                     elif action == 'die':
                         others[i].die()
                     elif others[i].crouch or action == 'crunch':
-                        others[i].crouch = True
+                        # others[i].crouch = True
                         others[i].update_action(4)  # 4: crouch
                     elif action == 'resync':
                         coordX, coordY = int(try_split[2]), int(try_split[3])
                         print(coordX, coordY)
-                        others[i].rect.center = (coordX, coordY)
+                        others[i].rect.center = (coordX + screen_scroll, coordY)
                     else:
                         others[i].update_action(0)  # 0: idle
 
