@@ -9,6 +9,8 @@ const {md5} = require('md5')
 var dgram = require('dgram');
 var server = dgram.createSocket('udp4');
 
+const DEFAULT_PLAYER_STARTPOINT = 2
+
 // const createId = nanoid
 const inmemData = {
     rooms: {
@@ -17,22 +19,22 @@ const inmemData = {
             player_list: [1, 2, 3],
             status: 'queuing'
         },
-        //note: 😘 enable this at playtime
-        'li5SdBU-ff23qW0LhwV8e': {
-            player_startpoint: 2,
-            player_list: [],
-            status: 'queuing'
-        },
-        'li5SdBU-ff33qW0LhwV8e': {
-            player_startpoint: 2,
-            player_list: [4],
-            status: 'queuing'
-        },
-        'li5SdBU-ff33qW0LhwV8r': {
-            player_startpoint: 2,
-            player_list: [48, 9],
-            status: 'playing'
-        }
+        // note: 😘 enable this at playtime
+        // 'li5SdBU-ff23qW0LhwV8e': {
+        //     player_startpoint: 2,
+        //     player_list: [],
+        //     status: 'queuing'
+        // },
+        // 'li5SdBU-ff33qW0LhwV8e': {
+        //     player_startpoint: 2,
+        //     player_list: [4],
+        //     status: 'queuing'
+        // },
+        // 'li5SdBU-ff33qW0LhwV8r': {
+        //     player_startpoint: 2,
+        //     player_list: [48, 9],
+        //     status: 'playing'
+        // }
     },
     playerIds: [1, 2, 3, 4, 48, 9],
     idMapIp: {
@@ -103,7 +105,7 @@ server.on('message', function (message, remote) {
 
                 const roomId = nanoid();
                 const room = {
-                    player_startpoint: 2,
+                    player_startpoint: DEFAULT_PLAYER_STARTPOINT,
                     player_list: [playerId],
                     status: 'queuing'
                 } // pending room
@@ -148,7 +150,7 @@ server.on('message', function (message, remote) {
                 } else {
                     const roomId = nanoid();
                     room = {
-                        player_startpoint: 2,
+                        player_startpoint: DEFAULT_PLAYER_STARTPOINT,
                         player_list: [playerId],
                         status: 'queuing'
                     } // pending room
@@ -161,6 +163,7 @@ server.on('message', function (message, remote) {
                 if (room.player_list.length >= room.player_startpoint) {
                     room.status = 'playing'
                 }
+                console.log(room.player_list.length, room.player_startpoint)
 
                 const IPs = room.player_list.filter(x => x !== playerId).map(k => inmemData.idMapIp[k]).filter(x => x !== undefined)
                 const player_list = room.player_list.filter(x => x !== playerId)

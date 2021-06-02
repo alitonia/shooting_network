@@ -14,6 +14,9 @@ from dotenv import load_dotenv
 from pathlib import Path
 import os
 
+# Start network config
+
+
 dotenv_path = Path('../../.env')
 load_dotenv(dotenv_path=dotenv_path)
 
@@ -29,11 +32,13 @@ other_configs['HOSTIP'] = os.environ.get("HOSTIP")
 other_configs['msg'] = []
 other_configs['event'] = []
 
-other_configs['self_id'] = None
+other_configs['self_id'] = random.randint(1, pow(10, 9))  # self made an id then dispatch. low probability
 other_configs['other_players'] = None
+other_configs['can_play'] = False
+
+other_configs['should_resync'] = True
 
 # ----------------------------  For testing. remove at deploy pls
-other_configs['self_id'] = random.randint(1, pow(10, 9))
 # other_configs['other_players'] = [2, 4, 5]
 # --------------------------    For testing. remove at deploy pls
 
@@ -44,7 +49,13 @@ recv_q = start_receive_thread(other_configs)
 send_q = start_send_thread(other_configs)
 start_process_thread(recv_q, send_q, other_configs)
 
+abs_starting_x = 280  # act as base for moving around
+abs_starting_x = 0
+
 print(f"Config: listen {other_configs['PY_PORT']} | C: {other_configs['C_PORT']} ")
+
+#  End network config
+
 
 mixer.init()
 pygame.init()
@@ -231,9 +242,11 @@ class Soldier(pygame.sprite.Sprite):
     def __init__(self, char_type, x, y, scale, speed, ammo, grenades, id=-1):
         pygame.sprite.Sprite.__init__(self)
         self.id = id
+        # global abs_starting_x
+        # abs_starting_x -= 280
 
         self.resyncCount = 0
-        self.resyncThreshold = 20
+        self.resyncThreshold = 30
 
         self.alive = True
         self.char_type = char_type
@@ -302,12 +315,16 @@ class Soldier(pygame.sprite.Sprite):
         self.image = self.animation_list[self.action][self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        # if self.char_type =='player':
+        #     global abs_starting_x
+        #     abs_starting_x = x
         self.width = self.image.get_width()
         self.height = self.image.get_height()
         self.offset_x = 0
         self.offset_y = 0
 
     def update(self):
+        global abs_starting_x
         if self.char_type == 'player':
             self.resyncCount += 1
 
@@ -316,8 +333,11 @@ class Soldier(pygame.sprite.Sprite):
         # if self.char_type != 'other':
         self.update_animation()
         if self.resyncCount >= self.resyncThreshold:
+            print('current location ', self.rect.center)
             self.resyncCount = 0
-            # other_configs['event'].append(f"resync {self.rect.center[0]} {self.rect.center[1]}")
+
+            if other_configs['should_resync']:
+                other_configs['event'].append(f"resync {self.rect.center[0]+abs_starting_x} {self.rect.center[1]}")
 
         self.check_alive()
         # update cooldown
@@ -325,6 +345,16 @@ class Soldier(pygame.sprite.Sprite):
             self.shoot_cooldown -= 1
 
     def move(self, moving_left, moving_right, is_jump=False):
+        # global abs_starting_x
+        global abs_starting_x
+
+        if self.char_type == 'player':
+            pass
+            # print('------')
+            # print("Record")
+            # print(f"Global offset ", abs_starting_x)
+            # print("Self ", self.rect.center)
+            # print('------')
 
         if self.dead:
             return 0, 0
@@ -407,7 +437,8 @@ class Soldier(pygame.sprite.Sprite):
             if (self.rect.right > SCREEN_WIDTH - SCROLL_THRESH and bg_scroll <
                 (world.level_length * TILE_SIZE) - SCREEN_WIDTH) \
                     or (self.rect.left < SCROLL_THRESH and bg_scroll > abs(dx)):
-                self.rect.x -= dx
+                self.rect.x -= dx  # fixed screen but still have movement
+                abs_starting_x += dx
                 screen_scroll = -dx
 
         return screen_scroll, level_complete
@@ -574,6 +605,15 @@ class World():
         for tile in self.obstacle_list:
             tile[1][0] += screen_scroll
             screen.blit(tile[0], tile[1])
+
+
+class Placeholder():
+    """A placeholder, used to update static point in game"""
+
+    def update(self):
+        # global abs_starting_x
+        # abs_starting_x -= screen_scroll
+        pass
 
 
 class Decoration(pygame.sprite.Sprite):
@@ -817,6 +857,8 @@ decoration_group = pygame.sprite.Group()
 water_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 
+_p = Placeholder()
+
 # create empty tile list
 world_data = []
 for row in range(ROWS):
@@ -835,6 +877,8 @@ run = True
 
 for o in others:
     o.in_air = False
+
+leftover_scroll = screen_scroll
 
 while run:
 
@@ -865,6 +909,8 @@ while run:
         if exit_button.draw(screen):
             run = False
     else:
+        # print('offset ', abs_starting_x)
+
         # update background
         draw_bg()
         # draw world map
@@ -898,6 +944,7 @@ while run:
         explosion_group.update()
         item_box_group.update()
         decoration_group.update()
+        _p.update()
         water_group.update()
         exit_group.update()
         bullet_group.draw(screen)
@@ -1025,8 +1072,16 @@ while run:
                         others[i].update_action(4)  # 4: crouch
                     elif action == 'resync':
                         coordX, coordY = int(try_split[2]), int(try_split[3])
-                        print(coordX, coordY)
-                        others[i].rect.center = (coordX + screen_scroll, coordY)
+                        # print('scroll', screen_scroll)
+                        print('global offset ', abs_starting_x)
+                        print('player offset ', player.rect.center[0], player.rect.center[1])
+                        #
+                        # print('new', coordX, coordY)
+                        # print('old side', others[i].rect.x, others[i].rect.y)
+                        # print('old cen', others[i].rect.center[0], others[i].rect.center[0])
+                        others[i].rect.center = (coordX - abs_starting_x, coordY)
+                        # others[i].rect.center = (coordX - 200, coordY)
+                        print(f'new {i} offset ', others[i].rect.center[0], others[i].rect.center[1])
                     else:
                         others[i].update_action(0)  # 0: idle
 
@@ -1096,6 +1151,7 @@ while run:
     if player_persist_key is not None and persist_dispatched is False:
         other_configs['event'].append(player_persist_key)
 
+    leftover_scroll = screen_scroll
     pygame.display.update()
 
 pygame.quit()

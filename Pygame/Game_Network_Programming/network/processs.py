@@ -47,13 +47,13 @@ def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
                     if config['other_players'] is None:
                         jstr = re.match(r"^register_details (.*)$", msg.rstrip()).groups()[0]
                         room_des = json.loads(jstr)
-                        if room_des.get('player_list'):
+                        if room_des.get('player_list') is not None and room_des.get('player_startpoint') is not None and int(room_des.get('player_startpoint')) -1 <= len(room_des.get('player_list')):
                             print('-----')
                             print(room_des)
                             config['other_players'] = [int(i) for i in room_des.get('player_list') if
                                                        int(i) != config['self_id']]
+                            config['can_play'] = True
                             print(config['other_players'], 'yes')
-
                             print('-----')
                     should_forward = False
 
