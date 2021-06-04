@@ -15,7 +15,7 @@ def _start_receive_thread(q, cf):
 def start_receive_thread(cf):
     q = Queue()
     try:
-        x = threading.Thread(target=_start_receive_thread, args=(q, cf))
+        x = threading.Thread(target=_start_receive_thread, args=(q, cf), daemon=True)
         x.start()
     except e:
         sys.exit("Error: unable to start thread")

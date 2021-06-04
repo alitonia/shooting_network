@@ -13,9 +13,7 @@ import random
 from dotenv import load_dotenv
 from pathlib import Path
 import os
-
 # Start network config
-
 
 dotenv_path = Path('../../.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -29,12 +27,19 @@ other_configs['C_PORT'] = int(os.environ.get("C_PORT"))
 other_configs['NODE_PORT'] = int(os.environ.get("NODE_PORT"))
 other_configs['HOSTIP'] = os.environ.get("HOSTIP")
 
+other_configs['P2P'] = (int(os.environ.get("P2P")) == 1)
+
+other_configs['transform'] = (int(os.environ.get("TRANSFORM")) == 1)
+
+
 other_configs['msg'] = []
 other_configs['event'] = []
 
 other_configs['self_id'] = random.randint(1, pow(10, 9))  # self made an id then dispatch. low probability
 other_configs['other_players'] = None
 other_configs['can_play'] = False
+other_configs['can_send_C'] = False
+
 
 other_configs['should_resync'] = True
 
@@ -57,6 +62,37 @@ print(f"Config: listen {other_configs['PY_PORT']} | C: {other_configs['C_PORT']}
 #  End network config
 
 
+rand_pool = [
+            pygame.BLEND_RGB_ADD, pygame.BLEND_RGB_SUB, 
+            pygame.BLEND_RGB_MULT, pygame.BLEND_RGB_MIN, 
+            pygame.BLEND_RGB_MAX
+            ]
+
+def colorize(image, newColor, pos):
+    image.fill(newColor[0:3] , None, pos)
+    return image
+
+def randomPos():
+    return rand_pool[random.randint(0, len(rand_pool)-1)]
+
+def random255():
+    return random.randint(0,255)
+
+def randColor():
+    return (random255(),random255(),random255())
+
+def randomColorShift(image):
+    colorRef = randColor()
+    pos = randomPos()
+    return colorize(image, colorRef, pos)
+
+def condRandomColorShift(image):
+    if other_configs['transform']:
+        return randomColorShift(image)
+    else:
+        return image
+
+
 mixer.init()
 pygame.init()
 
@@ -77,7 +113,7 @@ ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 21
-MAX_LEVELS = 1
+MAX_LEVELS = 3
 screen_scroll = 0
 bg_scroll = 0
 level = 1
@@ -109,13 +145,22 @@ exit_img = pygame.image.load('img/exit_btn.png').convert_alpha()
 restart_img = pygame.image.load('img/restart_btn.png').convert_alpha()
 # background
 pine1_img = pygame.image.load('img/background/pine1.png').convert_alpha()
+condRandomColorShift(pine1_img)
+
 pine2_img = pygame.image.load('img/background/pine2.png').convert_alpha()
+
 mountain_img = pygame.image.load('img/background/mountain.png').convert_alpha()
+
+condRandomColorShift(mountain_img)
+
 sky_img = pygame.image.load('img/background/sky_cloud.png').convert_alpha()
+condRandomColorShift(sky_img)
+
 # store tiles in a list
 img_list = []
 for x in range(TILE_TYPES):
     img = pygame.image.load(f'img/tile/{x}.png')
+    condRandomColorShift(img)
     img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
     img_list.append(img)
 # bullet
@@ -255,7 +300,7 @@ class Soldier(pygame.sprite.Sprite):
         self.start_ammo = ammo
         self.shoot_cooldown = 0
         self.grenades = grenades
-        self.health = 100
+        self.health = 1000000 if char_type == 'other' else 100
         self.max_health = self.health
         self.direction = 1
         self.vel_y = 0
@@ -290,6 +335,8 @@ class Soldier(pygame.sprite.Sprite):
                     temp_list.append(img)
                 self.animation_list.append(temp_list)
         elif self.char_type == "other":
+            filterColor = randColor()
+            pos = pygame.BLEND_RGB_ADD
             for animation in animation_player_types:
                 # reset temporary list of images
                 temp_list = []
@@ -297,10 +344,13 @@ class Soldier(pygame.sprite.Sprite):
                 num_of_frames = len(os.listdir(f'image/{"player"}/{animation}'))
                 for i in range(num_of_frames):
                     img = pygame.image.load(f'image/{"player"}/{animation}/{i}.png').convert_alpha()
+                    colorize(img, filterColor, pos)
                     img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
                     temp_list.append(img)
                 self.animation_list.append(temp_list)
         else:
+            filterColor = randColor()
+            pos = randomPos()
             for animation in animation_enemy_types:
                 # reset temporary list of images
                 temp_list = []
@@ -308,6 +358,7 @@ class Soldier(pygame.sprite.Sprite):
                 num_of_frames = len(os.listdir(f'image/{self.char_type}/{animation}'))
                 for i in range(num_of_frames):
                     img = pygame.image.load(f'image/{self.char_type}/{animation}/{i}.png').convert_alpha()
+                    colorize(img, filterColor, pos)
                     img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
                     temp_list.append(img)
                 self.animation_list.append(temp_list)
@@ -411,7 +462,7 @@ class Soldier(pygame.sprite.Sprite):
                     dy = tile[1].top - self.rect.bottom
 
         # check for collision with water
-        if pygame.sprite.spritecollide(self, water_group, False):
+        if pygame.sprite.spritecollide(self, water_group, False) and self.char_type =='player':
             self.health = 0
 
         # check for collision with exit
@@ -420,7 +471,7 @@ class Soldier(pygame.sprite.Sprite):
             level_complete = True
 
         # check if fallen off the map
-        if self.rect.bottom > SCREEN_HEIGHT:
+        if self.rect.bottom > SCREEN_HEIGHT  and self.char_type =='player':
             self.health = 0
 
         # check if going off the edges of the screen
@@ -906,11 +957,13 @@ while run:
             pass
             start_game = True
             start_intro = True
+
         if exit_button.draw(screen):
             run = False
+            other_configs['event'].append('out_room')
+            print('quitting')
     else:
         # print('offset ', abs_starting_x)
-
         # update background
         draw_bg()
         # draw world map
@@ -1005,8 +1058,7 @@ while run:
             if death_fade.fade():
                 if restart_button.draw(screen):
                     start_game = False
-                    other_configs['self_id'] = random.randint(1, pow(10,
-                                                                     9))  # self made an id then dispatch. low probability
+                    other_configs['self_id'] = random.randint(1, pow(10, 9))
 
                     death_fade.fade_counter = 0
                     start_intro = True
@@ -1023,12 +1075,19 @@ while run:
                     screen_scroll, level_complete = player.move(moving_left, moving_right)
                     bg_scroll -= screen_scroll
 
+                    while len(other_configs['msg']) > 0:
+                        other_configs['msg'].pop()
+                    
+                    other_configs['event'].append('out_room')
+
+
                     # check if player has completed the level
                     if level_complete:
                         start_intro = True
                         level += 1
                         bg_scroll = 0
                         world_data = reset_level()
+
                         if level <= MAX_LEVELS:
                             # load in level data and create world
                             with open(f'level{level}_data.csv', newline='') as csvfile:
@@ -1039,18 +1098,10 @@ while run:
                             world = World()
                             player, health_bar, others = world.process_data(world_data)
 
-                        while len(other_configs['msg']) > 0:
-                            other_configs['msg'].pop()
-                        print('a')
                     else:
                         other_configs['other_players'] = None
-                        print('abc')
-
-
-    print(start_game, other_configs['other_players'])
 
     while len(other_configs['msg']) > 0:
-        print('k')
         m = other_configs['msg'].pop()
         try:
             try_split = m.rstrip().split(' ')
@@ -1062,7 +1113,6 @@ while run:
                     i = other_configs['other_players'].index(id)
                     if action == 'shoot':
                         others[i].shoot()
-                        print('shoot')
                     # throw grenades
                     elif action == 'grenade':
                         grenade = Grenade(others[i].rect.centerx + (0.5 * others[i].rect.size[0] * others[i].direction), \
@@ -1084,21 +1134,11 @@ while run:
                         others[i].update_action(4)  # 4: crouch
                     elif action == 'resync':
                         coordX, coordY = int(try_split[2]), int(try_split[3])
-                        # print('scroll', screen_scroll)
-                        # print('global offset ', abs_starting_x)
-                        # print('player offset ', player.rect.center[0], player.rect.center[1])
-                        #
-                        # print('new', coordX, coordY)
-                        # print('old side', others[i].rect.x, others[i].rect.y)
-                        # print('old cen', others[i].rect.center[0], others[i].rect.center[0])
                         others[i].rect.center = (coordX - abs_starting_x, coordY)
-                        # others[i].rect.center = (coordX - 200, coordY)
-                        # print(f'new {i} offset ', others[i].rect.center[0], others[i].rect.center[1])
                     else:
                         others[i].update_action(0)  # 0: idle
 
                     others[i].move(action == 'left', action == 'right', action == 'jump')
-            print(m)
         except Exception as e:
             print(e)
             print('in msg layer')

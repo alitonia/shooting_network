@@ -13,8 +13,15 @@ cooldown = {
     'get_room': {
         'time': 1,
         'last': None
+    },
+    'out_room': {
+        'time': 0.2,
+        'last': None
     }
 }
+
+
+nd_only_cmd =[]
 
 
 def get_permission(key):
@@ -29,6 +36,8 @@ def get_permission(key):
 
 
 def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
+    dispatch_target = 'cp' if config['P2P'] else 'nd'
+
     while True:
         try:
             sid = config['self_id']
@@ -68,6 +77,8 @@ def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
 
                 register = re.search(r"^register.?$", msg)
                 get_room = re.search(r"^get_room.?$", msg)
+                out_room = re.search(r"^out_room.?$", msg)
+
 
                 if register is not None:
                     should_send = get_permission('register')
@@ -75,21 +86,39 @@ def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
                         send_q.put({
                             "IP": config['HOSTIP'],
                             "port": config['C_PORT'],
-                            "payload": f"{msg}--py".encode('utf-8')
+                            "payload": f"{msg}--nd".encode('utf-8')
                         })
                     continue
 
                 elif get_room is not None:
                     should_send = get_permission('get_room')
                     msg = 'join_room'
+                    if should_send:
+                        send_q.put({
+                            "IP": config['HOSTIP'],
+                            "port": config['C_PORT'],
+                            "payload": f"{sid} {msg}--nd".encode('utf-8')
+                        })
+                    continue
 
+                elif out_room is not None:
+                    should_send = get_permission('out_room')
+                    msg = 'delete_id'
+                    if should_send:
+                        send_q.put({
+                            "IP": config['HOSTIP'],
+                            "port": config['C_PORT'],
+                            "payload": f"{sid} {msg}--nd".encode('utf-8')
+                        })
+                    continue
                 # print(f"{sid} {msg}".encode('utf-8'))
+
 
                 if should_send:
                     send_q.put({
                         "IP": config['HOSTIP'],
                         "port": config['C_PORT'],
-                        "payload": f"{sid} {msg}--py".encode('utf-8')
+                        "payload": f"{sid} {msg}--{dispatch_target}".encode('utf-8')
                     })
 
             time.sleep(0.001)
@@ -100,7 +129,7 @@ def _start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
 
 def start_process_thread(recv_q: Queue, send_q: Queue, config: dict):
     try:
-        x = threading.Thread(target=_start_process_thread, args=(recv_q, send_q, config))
+        x = threading.Thread(target=_start_process_thread, args=(recv_q, send_q, config), daemon=True)
         x.start()
     except e:
         sys.exit("Error: unable to start thread")

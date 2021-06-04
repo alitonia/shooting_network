@@ -22,7 +22,7 @@ def _start_send_thread(q: Queue, cf):
 def start_send_thread(cf):
     q = Queue()
     try:
-        x = threading.Thread(target=_start_send_thread, args=(q, cf))
+        x = threading.Thread(target=_start_send_thread, args=(q, cf), daemon=True)
         x.start()
     except e:
         sys.exit("Error: unable to start thread")

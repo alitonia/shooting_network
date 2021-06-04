@@ -2,6 +2,13 @@ require('dotenv').config({path: './../.env'})
 
 const PORT = process.env.NODE_PORT;
 
+const shouldForward = (process.env.P2P ==1)
+
+const shouldAddDummy = (process.env.HAS_DUMMY_ROOM ==1)
+const DUMMY_ID = Number.parseInt(process.env.DUMMY_ID)
+const DUMMY_SOC = process.env.DUMMY_SOC
+
+
 
 const {nanoid} = require('nanoid')
 const {md5} = require('md5')
@@ -9,46 +16,77 @@ const {md5} = require('md5')
 var dgram = require('dgram');
 var server = dgram.createSocket('udp4');
 
-const DEFAULT_PLAYER_STARTPOINT = 2
+const DEFAULT_PLAYER_STARTPOINT = (process.env.DEFAULT_ROOM_SIZE || 2)
+
+function getCurrentSec(){
+  return Date.now()/1000
+}
+
 
 // const createId = nanoid
 const inmemData = {
     rooms: {
+        // note: 😘 disable this at playtime
         'li5SdBU-ff33qW0LhwV8q': {
-            player_startpoint: 2,
+            player_startpoint: DEFAULT_PLAYER_STARTPOINT,
             player_list: [1, 2, 3],
-            status: 'queuing'
+            status: 'queuing',
+            lastModified: getCurrentSec()
         },
-        // note: 😘 enable this at playtime
-        // 'li5SdBU-ff23qW0LhwV8e': {
-        //     player_startpoint: 2,
-        //     player_list: [],
-        //     status: 'queuing'
-        // },
-        'li5SdBU-ff33qW0LhwV8e': {
-            player_startpoint: 2,
-            player_list: [4],
-            status: 'queuing'
-        },
-        // 'li5SdBU-ff33qW0LhwV8r': {
-        //     player_startpoint: 2,
-        //     player_list: [48, 9],
-        //     status: 'playing'
-        // }
     },
-    playerIds: [1, 2, 3, 4, 48, 9],
+    playerIds: [1, 2, 3],
     idMapIp: {
         1: '127.0.0.1:8996',
         2: '127.0.0.1:9998',
         3: '127.0.0.1:9992',
-        4: '127.0.0.1:9996',
-        48: '127.0.0.1:9999',
-        9: '127.0.0.1:10000',
     }
 }
 
 
-const unrepliedMsgs = {}
+if (shouldAddDummy) {
+    const fillID = DUMMY_ID;
+    const fillSOC = DUMMY_SOC;
+
+    inmemData.rooms['li5SdBU-ff33qW0LhwV8e'] = {
+        player_startpoint: DEFAULT_PLAYER_STARTPOINT,
+        player_list: [fillID],
+        status: 'queuing',
+        lastModified: getCurrentSec()
+    }
+
+    inmemData.playerIds= inmemData.playerIds.concat(DUMMY_ID)
+    inmemData.idMapIp[DUMMY_ID] = fillSOC
+}
+
+
+const MAX_PLAYER = 1000
+
+const clearRoom =()=> {
+    console.log('runnint')
+    const runningTime = getCurrentSec();
+    const removable = [];
+
+    Object.keys(inmemData).forEach((k)=>{
+        const room = inmemData[k]
+        if (room) {
+            const lm = room.lastModified;
+            if (lm && runningTime - lm > 1000) {
+                removable = removable.concat(k)
+            }
+        }
+    })
+
+    removable.forEach(k =>{
+        if (inmemData[k]) {
+            const pl = inmemData[k].player_list
+            inmemData.playerIds = inmemData.playerIds.filter(id => !pl.includes(id)) // remove ids
+            delete inmemData[k];
+        }
+    })
+}
+
+
+setInterval(clearRoom, 1000*1000)
 
 
 const saveUnRep = (ip, port, msg) => {
@@ -90,24 +128,29 @@ server.on('listening', function () {
 
 server.on('message', function (message, remote) {
 
-        const {address, port, size} = remote
-        console.log('received ' + address + ':' + port + '_' + size + ' ' + ' - ' + message)
+    const {address, port, size} = remote
+    console.log('received ' + address + ':' + port + '_' + size + ' ' + ' - ' + message)
 
-        const {payload} = parseMessage(message.toString())
-        console.log(payload)
+    const {payload} = parseMessage(message.toString())
+    console.log(payload)
+
+    if (inmemData.playerIds.length > MAX_PLAYER) {
+        clearRoom()
+    }
 
 
-        if (/.*create_room \d+.*/i.test(payload)) {
-            const playerId = Number.parseInt(payload.split(' ')[1])
-            inmemData.idMapIp[playerId] = address + ':' + port
+    if (/.*create_room \d+.*/i.test(payload)) {
+        const playerId = Number.parseInt(payload.split(' ')[1])
+        inmemData.idMapIp[playerId] = address + ':' + port
 
-            if (!inmemData.playerIds.includes(playerId)) {
+        if (!inmemData.playerIds.includes(playerId)) {
 
-                const roomId = nanoid();
-                const room = {
-                    player_startpoint: DEFAULT_PLAYER_STARTPOINT,
-                    player_list: [playerId],
-                    status: 'queuing'
+            const roomId = nanoid();
+            const room = {
+                player_startpoint: DEFAULT_PLAYER_STARTPOINT,
+                player_list: [playerId],
+                status: 'queuing',
+                lastModified: getCurrentSec()
                 } // pending room
 
                 inmemData.rooms[roomId] = room
@@ -118,6 +161,8 @@ server.on('message', function (message, remote) {
                 server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
             } else {
                 const room = Object.values(inmemData.rooms).find(x => x.player_list.includes(playerId))
+                room.lastModified = getCurrentSec();
+
                 const msg = JSON.stringify(room)
                 server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
             }
@@ -130,6 +175,7 @@ server.on('message', function (message, remote) {
 
             if (inmemData.playerIds.includes(playerId)) {
                 const room = Object.values(inmemData.rooms).find(x => x.player_list.includes(playerId))
+                room.lastModified = getCurrentSec();
 
                 const IPs = room.player_list.filter(x => x !== playerId).map(k => inmemData.idMapIp[k]).filter(x => x !== undefined)
                 const player_list = room.player_list.filter(x => x !== playerId)
@@ -138,7 +184,8 @@ server.on('message', function (message, remote) {
                     ...room,
                     player_list: player_list,
                     IPs: IPs,
-                    type: 4
+                    type: 4,
+                    lastModified: room.lastModified
                 }
                 const msg = "register_details " + JSON.stringify(payload)
                 server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
@@ -152,7 +199,7 @@ server.on('message', function (message, remote) {
                     room = {
                         player_startpoint: DEFAULT_PLAYER_STARTPOINT,
                         player_list: [playerId],
-                        status: 'queuing'
+                        status: 'queuing',
                     } // pending room
 
                     inmemData.rooms[roomId] = room
@@ -163,6 +210,9 @@ server.on('message', function (message, remote) {
                 if (room.player_list.length >= room.player_startpoint) {
                     room.status = 'playing'
                 }
+                
+                room.lastModified = getCurrentSec();
+
                 console.log(room.player_list.length, room.player_startpoint)
 
                 const IPs = room.player_list.filter(x => x !== playerId).map(k => inmemData.idMapIp[k]).filter(x => x !== undefined)
@@ -170,7 +220,8 @@ server.on('message', function (message, remote) {
                 const payload = {
                     ...room,
                     player_list: player_list,
-                    IPs: IPs
+                    IPs: IPs,
+                    lastModified: room.lastModified
                 }
                 const msg = JSON.stringify(payload)
                 server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
@@ -180,13 +231,14 @@ server.on('message', function (message, remote) {
             const msg = JSON.stringify(inmemData.rooms)
             server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
 
-        } else if (/.*delete_id \d+.*/i.test(payload)) {
+        } else if (/.*\d+ delete_id .*/i.test(payload)) {
             // remove player's id
-            const playerId = Number.parseInt(payload.split(' ')[1])
+            const playerId = Number.parseInt(payload.split(' ')[0])
             if (inmemData.playerIds.includes(playerId)) {
                 delete inmemData.idMapIp[playerId]
 
                 const room = Object.values(inmemData.rooms).find(x => x.player_list.includes(playerId))
+                room.lastModified = getCurrentSec();
                 if (room.player_list.length === 1) {
                     const roomKey = Object.keys(inmemData.rooms).find(x => inmemData.rooms[x].player_list.includes(playerId))
                     delete inmemData.rooms[roomKey]
@@ -275,7 +327,7 @@ server.on('message', function (message, remote) {
                 server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
             }
 
-        } else if (/^\d+ .*$/i.test(payload)) {
+        } else if (/^\d+ .*$/i.test(payload) && shouldForward) {
             console.log('t1')
             const playerId = Number.parseInt(payload.split(' ')[0])
             if (inmemData.playerIds.includes(playerId)) {
@@ -284,6 +336,8 @@ server.on('message', function (message, remote) {
                 // player exists
                 //now find room
                 const room = Object.values(inmemData.rooms).find(x => x.player_list.includes(playerId))
+                room.lastModified = getCurrentSec();
+
                 const IPs = room.player_list.filter(x => x !== playerId).map(k => inmemData.idMapIp[k]).filter(x => x !== undefined)
                 console.log('t3', IPs)
 
@@ -295,6 +349,6 @@ server.on('message', function (message, remote) {
             }
         }
     }
-);
+    );
 
 server.bind(PORT);
