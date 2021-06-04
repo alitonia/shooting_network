@@ -291,7 +291,7 @@ class Soldier(pygame.sprite.Sprite):
         # abs_starting_x -= 280
 
         self.resyncCount = 0
-        self.resyncThreshold = 30
+        self.resyncThreshold = 60
 
         self.alive = True
         self.char_type = char_type

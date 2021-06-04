@@ -8,13 +8,15 @@ _Under development_
 * yarn install
 * install python env, pygame
 * New implementation run only for all local or all non-local compared to node
+* remember start node flag (-i)
 
 ### TODO:
 
-* Run script
-* Remove log
-* eventual consistancy
-* Resync
-* Dead animation
-* New level, restart
-* Exit
+* Build script
+
+### Demo
+
+* https://imgur.com/a/ZfLxG1A
+* https://imgur.com/a/8Ojw3IN
+* https://www.youtube.com/watch?v=MvJbJtp7ECg
+* https://www.youtube.com/watch?v=OUsjXGbPh2w
