@@ -77,7 +77,7 @@ ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 21
-MAX_LEVELS = 3
+MAX_LEVELS = 1
 screen_scroll = 0
 bg_scroll = 0
 level = 1
@@ -337,7 +337,7 @@ class Soldier(pygame.sprite.Sprite):
             self.resyncCount = 0
 
             if other_configs['should_resync']:
-                other_configs['event'].append(f"resync {self.rect.center[0]+abs_starting_x} {self.rect.center[1]}")
+                other_configs['event'].append(f"resync {self.rect.center[0] + abs_starting_x} {self.rect.center[1]}")
 
         self.check_alive()
         # update cooldown
@@ -901,7 +901,7 @@ while run:
             # start game here
             others = [Soldier('other', 7 * TILE_SIZE, 7 * TILE_SIZE, 2.5, 5, 20, 5, i) for i in
                       other_configs['other_players']]
-            print('p')
+            print('finish initializing')
             # player, health_bar, others = world.process_data(world_data)
             pass
             start_game = True
@@ -1004,6 +1004,10 @@ while run:
             screen_scroll = 0
             if death_fade.fade():
                 if restart_button.draw(screen):
+                    start_game = False
+                    other_configs['self_id'] = random.randint(1, pow(10,
+                                                                     9))  # self made an id then dispatch. low probability
+
                     death_fade.fade_counter = 0
                     start_intro = True
                     bg_scroll = 0
@@ -1018,6 +1022,7 @@ while run:
                     player, health_bar, others = world.process_data(world_data)
                     screen_scroll, level_complete = player.move(moving_left, moving_right)
                     bg_scroll -= screen_scroll
+
                     # check if player has completed the level
                     if level_complete:
                         start_intro = True
@@ -1036,6 +1041,13 @@ while run:
 
                         while len(other_configs['msg']) > 0:
                             other_configs['msg'].pop()
+                        print('a')
+                    else:
+                        other_configs['other_players'] = None
+                        print('abc')
+
+
+    print(start_game, other_configs['other_players'])
 
     while len(other_configs['msg']) > 0:
         print('k')
@@ -1073,15 +1085,15 @@ while run:
                     elif action == 'resync':
                         coordX, coordY = int(try_split[2]), int(try_split[3])
                         # print('scroll', screen_scroll)
-                        print('global offset ', abs_starting_x)
-                        print('player offset ', player.rect.center[0], player.rect.center[1])
+                        # print('global offset ', abs_starting_x)
+                        # print('player offset ', player.rect.center[0], player.rect.center[1])
                         #
                         # print('new', coordX, coordY)
                         # print('old side', others[i].rect.x, others[i].rect.y)
                         # print('old cen', others[i].rect.center[0], others[i].rect.center[0])
                         others[i].rect.center = (coordX - abs_starting_x, coordY)
                         # others[i].rect.center = (coordX - 200, coordY)
-                        print(f'new {i} offset ', others[i].rect.center[0], others[i].rect.center[1])
+                        # print(f'new {i} offset ', others[i].rect.center[0], others[i].rect.center[1])
                     else:
                         others[i].update_action(0)  # 0: idle
 
