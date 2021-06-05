@@ -17,6 +17,9 @@
 #include <iterator>
 #include <string.h>
 
+#include <chrono>
+#include <ctime> 
+
 using namespace dotenv;
 
 using json = nlohmann::json;
@@ -45,6 +48,8 @@ namespace udp_recv {
         int NODE_PORT=atoi(env["NODE_PORT"].c_str());
         int recv_port = atoi(env["C_PORT"].c_str());
         const char* NODEIP = env["NODEIP"].c_str();
+        
+        int is_P2P = atoi(env["P2P"].c_str());
 
         printf("Config: listen %d | py: %d | node: %d\n", recv_port, PY_PORT, NODE_PORT);
 
@@ -82,11 +87,51 @@ namespace udp_recv {
 
         int length;
         std::list<endpoint>  ep_list;
+
+        auto last_send = std::chrono::system_clock::now();
+        
+        // timeout for sending keep alive msg
+        struct timeval tv;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
+        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+            perror("Error");
+        }
+
         while (true) {
+            memset(buffer, 0, sizeof(char)*MAXLINE);
+
             n = recvfrom(sockfd, (char *) buffer, MAXLINE,
                MSG_WAITALL, (struct sockaddr *) &servaddr,
                reinterpret_cast<socklen_t *>(&len));
+            
+
             buffer[n] = '\0';
+
+            // artificially create packages
+            if (strlen(buffer) == 0)
+            {
+                // can be timout or 0 size package
+                auto current_time = std::chrono::system_clock::now();
+                auto time_elapsed = current_time - last_send;
+
+                if (time_elapsed.count() >= 1)
+                {
+                    //send keep alive
+                    if (is_P2P)
+                    {
+                        strcpy(buffer, "friendly_keep_alive--cp");
+                    }else{
+                        strcpy(buffer, "friendly_keep_alive--nd");
+                    }
+                    printf("Hello %s\n", buffer);
+                    last_send = current_time;
+                }
+                
+            }
+
+
             length = strlen(buffer);
 
             int dest_port = (int) ntohs(servaddr.sin_port);
@@ -189,6 +234,8 @@ namespace udp_recv {
            }
 //}
        if(is_self_config ==0 && is_to_C == 0){
+            last_send = std::chrono::system_clock::now();
+            
             sendto(sockfd, (const char *) buffer, strlen(buffer),
              MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
              sizeof(cliaddr));
@@ -197,7 +244,8 @@ namespace udp_recv {
         std::cout<< buffer;
 
        if(is_to_C == 1){
-        printf("Send spam\n");
+            last_send = std::chrono::system_clock::now();
+            // printf("Send spam\n");
                 // spam send
            for(auto f= ep_list.begin(); f!= ep_list.end(); f++){
 

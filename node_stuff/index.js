@@ -327,10 +327,16 @@ server.on('message', function (message, remote) {
                 server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
             }
 
-        } else if (/^\d+ .*$/i.test(payload) && shouldForward) {
+        } else if (/^\d+ .+$/i.test(payload) && shouldForward) {
             console.log('t1')
             const playerId = Number.parseInt(payload.split(' ')[0])
-            if (inmemData.playerIds.includes(playerId)) {
+            const msg = Number.parseInt(payload.split(' ')[1])
+
+            if (msg=='friendly_keep_alive') {
+                // keep alive msg.
+                
+            }
+            else if (inmemData.playerIds.includes(playerId)) {
                 console.log('t2')
 
                 // player exists
