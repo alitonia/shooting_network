@@ -2,7 +2,7 @@ require('dotenv').config({path: './../.env'})
 
 const PORT = process.env.NODE_PORT;
 
-const shouldForward = (process.env.P2P ==1)
+const shouldForward = (process.env.P2P ==0) // use node 
 
 const shouldAddDummy = (process.env.HAS_DUMMY_ROOM ==1)
 const DUMMY_ID = Number.parseInt(process.env.DUMMY_ID)
@@ -334,7 +334,7 @@ server.on('message', function (message, remote) {
 
             if (msg=='friendly_keep_alive') {
                 // keep alive msg.
-                
+
             }
             else if (inmemData.playerIds.includes(playerId)) {
                 console.log('t2')
