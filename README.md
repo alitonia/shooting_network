@@ -16,7 +16,9 @@ _Under development_
 
 ### Demo
 
-* https://imgur.com/a/ZfLxG1A
-* https://imgur.com/a/8Ojw3IN
-* https://www.youtube.com/watch?v=MvJbJtp7ECg
-* https://www.youtube.com/watch?v=OUsjXGbPh2w
+* Pic menu: https://imgur.com/a/ZfLxG1A
+* Pic gameplay: https://imgur.com/a/8Ojw3IN
+* 2-player gameplay with color: https://www.youtube.com/watch?v=MvJbJtp7ECg
+* 6-player gameplay with color: https://www.youtube.com/watch?v=OUsjXGbPh2w
+* 2-player gameplay normal mode:
+* Demo transform landscape: https://youtu.be/ZlRcr4T-MeA
