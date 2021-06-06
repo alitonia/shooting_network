@@ -48,6 +48,8 @@ namespace udp_recv {
         int NODE_PORT=atoi(env["NODE_PORT"].c_str());
         int recv_port = atoi(env["C_PORT"].c_str());
         const char* NODEIP = env["NODEIP"].c_str();
+        auto initial_spam = 5;
+        
         
         int is_P2P = atoi(env["P2P"].c_str());
 
@@ -73,7 +75,7 @@ namespace udp_recv {
 
         // Bind the socket with the server address
         if (bind(sockfd, (const struct sockaddr *) &servaddr,
-           sizeof(servaddr)) < 0) {
+         sizeof(servaddr)) < 0) {
             perror("bind failed");
         exit(EXIT_FAILURE);
     }
@@ -103,8 +105,8 @@ namespace udp_recv {
             memset(buffer, 0, sizeof(char)*MAXLINE);
 
             n = recvfrom(sockfd, (char *) buffer, MAXLINE,
-               MSG_WAITALL, (struct sockaddr *) &servaddr,
-               reinterpret_cast<socklen_t *>(&len));
+             MSG_WAITALL, (struct sockaddr *) &servaddr,
+             reinterpret_cast<socklen_t *>(&len));
             
 
             buffer[n] = '\0';
@@ -141,6 +143,8 @@ namespace udp_recv {
             int is_self_config = 0; //cf
             int is_to_py = 0;
 
+            int is_first_time = 0;
+
             if (length > 0) {
             //forward
                 if (length >=4 &&buffer[length-4]=='-'&&buffer[length-3]=='-'&& buffer[length-2]=='n' && buffer[length-1] == 'd'){
@@ -150,26 +154,26 @@ namespace udp_recv {
                     is_to_C = 1;
                     buffer[strlen(buffer)-4] = '\0';
                 }else if (length >=4 &&buffer[length-4]=='-'&&buffer[length-3]=='-'&& buffer[length-2]=='c' && buffer[length-1] == 'f'){
-                   is_self_config = 1;
-                   buffer[strlen(buffer)-4] = '\0';
-               }else{
+                 is_self_config = 1;
+                 buffer[strlen(buffer)-4] = '\0';
+             }else{
                 is_to_py = 1;
-               }
+            }
 
-               printf("\nb: %s\n", buffer);
-               printf("\n Node->%d C->%d Self->%d\n", is_to_node, is_to_C, is_self_config);
+            printf("\nb: %s\n", buffer);
+            printf("\n Node->%d C->%d Self->%d\n", is_to_node, is_to_C, is_self_config);
 //                char *cm = (char *) malloc(sizeof(char) * strlen(buffer));
 //                strcpy(cm, buffer);
 
-               memset(&cliaddr, 0, sizeof(cliaddr));
-               cliaddr.sin_family = AF_INET;
-               cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+            memset(&cliaddr, 0, sizeof(cliaddr));
+            cliaddr.sin_family = AF_INET;
+            cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-               if(is_to_node == 1){
+            if(is_to_node == 1){
                 cliaddr.sin_port = htons(NODE_PORT);
-                }else{
-                    cliaddr.sin_port = htons(PY_PORT);
-                }
+            }else{
+                cliaddr.sin_port = htons(PY_PORT);
+            }
 //
 
                 //special parse for join_room to save address
@@ -225,46 +229,76 @@ namespace udp_recv {
 
                                 printf("%s, %d -> %s %d\n",v, j, x.ip, x.port);
                             }
+                            is_first_time = 1;
                         }
                     } catch(json::basic_json::parse_error x){
-                       throw(x);
+                     throw(x);
 //                     std::cout<<"this errors parser\n";
-                   }
-               }
-           }
+                 }
+             }
+         }
 //}
-       if(is_self_config ==0 && is_to_C == 0){
+         if(is_self_config ==0 && is_to_C == 0){
             last_send = std::chrono::system_clock::now();
             
             sendto(sockfd, (const char *) buffer, strlen(buffer),
-             MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
-             sizeof(cliaddr));
+               MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
+               sizeof(cliaddr));
         }
 
         std::cout<< buffer;
 
-       if(is_to_C == 1){
+        if (is_to_py==1 && is_first_time == 1)
+        {
             last_send = std::chrono::system_clock::now();
-            // printf("Send spam\n");
-                // spam send
-           for(auto f= ep_list.begin(); f!= ep_list.end(); f++){
+            char* msg = "friendly_keep_alive";
 
-            memset(&cliaddr, 0, sizeof(cliaddr));
-            cliaddr.sin_family = AF_INET;
-            cliaddr.sin_addr.s_addr = inet_addr(f->ip);
-            cliaddr.sin_port = htons(f->port);
+            // spam send
+            for (int i = 0; i < initial_spam; ++i)
+            {
 
-            sendto(sockfd, (const char *) buffer, strlen(buffer),
-             MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
-             sizeof(cliaddr));
+                for(auto f= ep_list.begin(); f!= ep_list.end(); f++){
 
-            printf("_\n");
-            printf("To: %s %d %s\n", f->ip, f->port, buffer);
-            printf("_\n");
+                    memset(&cliaddr, 0, sizeof(cliaddr));
+                    cliaddr.sin_family = AF_INET;
+                    cliaddr.sin_addr.s_addr = inet_addr(f->ip);
+                    cliaddr.sin_port = htons(f->port);
 
+                    sendto(sockfd, (const char *) msg, strlen(msg),
+                       MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
+                       sizeof(cliaddr));
 
+                    printf("_\n");
+                    printf("To: %s %d %s\n", f->ip, f->port, buffer);
+                    printf("_\n");
+                }
+            /* code */
+            }
         }
-    }
+
+        if(is_to_C == 1){
+            last_send = std::chrono::system_clock::now();
+
+            // spam send
+            for(auto f= ep_list.begin(); f!= ep_list.end(); f++){
+
+                memset(&cliaddr, 0, sizeof(cliaddr));
+                cliaddr.sin_family = AF_INET;
+                cliaddr.sin_addr.s_addr = inet_addr(f->ip);
+                cliaddr.sin_port = htons(f->port);
+
+                sendto(sockfd, (const char *) buffer, strlen(buffer),
+                   MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
+                   sizeof(cliaddr));
+
+                printf("_\n");
+                printf("To: %s %d %s\n", f->ip, f->port, buffer);
+                printf("_\n");
+            }
+        }
+
+        // printf("\n------\nIn here %d\n-------\n", is_first_time);
+
 //    for(auto f= ep_list.begin(); f!= ep_list.end(); f++){
 //        printf("_\n");
 //        printf("Out: %s %d\n", f->ip, f->port);
@@ -272,7 +306,7 @@ namespace udp_recv {
 //
 //    }
 
-}
+    }
 }
 #pragma clang diagnostic pop
 }
