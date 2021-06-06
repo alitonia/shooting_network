@@ -31,11 +31,13 @@ other_configs['P2P'] = (int(os.environ.get("P2P")) == 1)
 
 other_configs['transform'] = (int(os.environ.get("TRANSFORM")) == 1)
 
+other_configs['ID_SPACE'] = int(os.environ.get("ID_SPACE"))
+
 
 other_configs['msg'] = []
 other_configs['event'] = []
 
-other_configs['self_id'] = random.randint(1, pow(10, 9))  # self made an id then dispatch. low probability
+other_configs['self_id'] = random.randint(1, pow(10, other_configs['ID_SPACE']))  # self made an id then dispatch. low probability
 other_configs['other_players'] = None
 other_configs['can_play'] = False
 other_configs['can_send_C'] = False
@@ -1058,7 +1060,7 @@ while run:
             if death_fade.fade():
                 if restart_button.draw(screen):
                     start_game = False
-                    other_configs['self_id'] = random.randint(1, pow(10, 9))
+                    other_configs['self_id'] = random.randint(1, pow(10, other_configs['ID_SPACE']))
 
                     death_fade.fade_counter = 0
                     start_intro = True

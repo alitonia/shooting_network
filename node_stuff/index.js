@@ -2,12 +2,13 @@ require('dotenv').config({path: './../.env'})
 
 const PORT = process.env.NODE_PORT;
 
-const shouldForward = (process.env.P2P ==0) // use node 
+const shouldForward = (process.env.P2P == 0) // use node 
 
 const shouldAddDummy = (process.env.HAS_DUMMY_ROOM ==1)
 const DUMMY_ID = Number.parseInt(process.env.DUMMY_ID)
 const DUMMY_SOC = process.env.DUMMY_SOC
 
+const ID_SPACE = Number.parseInt(process.env.ID_SPACE)
 
 
 const {nanoid} = require('nanoid')
@@ -94,7 +95,7 @@ const saveUnRep = (ip, port, msg) => {
 }
 
 
-const idSpace = 9
+const idSpace = ID_SPACE
 
 const randomNumber = () => Math.floor(Math.random() * Math.pow(10, idSpace))
 
@@ -188,6 +189,7 @@ server.on('message', function (message, remote) {
                     lastModified: room.lastModified
                 }
                 const msg = "register_details " + JSON.stringify(payload)
+                console.log(msg)
                 server.send(msg, 0, msg.length, port, address, (err) => !!err && console.warn(err))
             } else {
                 let room = Object.values(inmemData.rooms).find(x => x.player_list.length < x.player_startpoint && x.status !== 'playing')
@@ -337,7 +339,7 @@ server.on('message', function (message, remote) {
 
             }
             else if (inmemData.playerIds.includes(playerId)) {
-                console.log('t2')
+                console.log('forwarding')
 
                 // player exists
                 //now find room
@@ -345,11 +347,10 @@ server.on('message', function (message, remote) {
                 room.lastModified = getCurrentSec();
 
                 const IPs = room.player_list.filter(x => x !== playerId).map(k => inmemData.idMapIp[k]).filter(x => x !== undefined)
-                console.log('t3', IPs)
 
                 IPs.forEach(ad => {
                     const [ip, p] = ad.split(':')
-                    console.log('t5', ip, p, ad)
+                    console.log(ip, p,' -->', ad)
                     server.send(payload, 0, payload.length, p, ip, (err) => !!err && console.warn(err))
                 })
             }
