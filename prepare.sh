@@ -7,7 +7,7 @@ cd node_stuff && yarn && cd ..
 
 echo "building pygame UI"
 
-cd Pygame/Game_Network_Programming && pip3 install -r requirements.txt && cd ../..
+cd Pygame/Game_Network_Programming && pip3 install -r requirements.txt && mkdir image/enemy/jump && cd ../..
 
 
 echo "done"
